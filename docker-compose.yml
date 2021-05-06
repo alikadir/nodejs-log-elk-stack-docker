@@ -1,0 +1,47 @@
+version: '3.2'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.12.1
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.12.1
+    ports:
+    - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.12.1
+    command: -f /etc/logstash/conf.d/logstash.conf
+    ports:
+      - "5000:5000/tcp"
+      - "5000:5000/udp"
+      - "9600:9600"
+    volumes:
+    - ./logstash.conf:/etc/logstash/conf.d/logstash.conf
+    depends_on:
+      - elasticsearch
+      - kibana
+
+  my-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      LOGSTASH_HOST: logstash
+      LOGSTASH_PORT: 5000
+      WEBAPP_PORT: 8080
+    depends_on:
+      - logstash
+
